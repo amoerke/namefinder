@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CheckUpdateEvent, Favorite, GenerateRequest, NameSuggestion, ProviderInfo, Search } from '../../shared/types';
 import { api, HttpError, setUnauthorizedHandler } from './api';
-import { bothFree, isPending, mergeCheck } from './domain';
+import { bothFree, isPending, isUnchecked, mergeCheck } from './domain';
 import { EMPTY_REQ, Favorites, History, Login, SearchForm, SuggestionCard } from './components';
 
 type Auth = 'loading' | 'out' | 'in';
@@ -30,6 +30,7 @@ function Main({ onLogout }: { onLogout: () => void }) {
   const [showAll, setShowAll] = useState(false);
   const [tab, setTab] = useState<Tab>('ergebnisse');
   const [variantBusy, setVariantBusy] = useState<Set<string>>(new Set());
+  const [checkBusy, setCheckBusy] = useState<Set<string>>(new Set());
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
 
   const fail = useCallback((x: unknown) => {
@@ -103,6 +104,18 @@ function Main({ onLogout }: { onLogout: () => void }) {
     finally { setVariantBusy(s => { const n = new Set(s); n.delete(id); return n; }); }
   }
 
+  async function check(id: string) {
+    setCheckBusy(s => new Set(s).add(id));
+    try {
+      const checks = await api.check(id);
+      setSugs(prev => prev.map(s => s.id === id ? checks.reduce(mergeCheck, s) : s));
+    } catch (x) { fail(x); }
+    finally { setCheckBusy(s => { const n = new Set(s); n.delete(id); return n; }); }
+  }
+
+  // Der Server drosselt die RDAP-Abfragen selbst, daher alle auf einmal anstoßen.
+  const checkAll = () => Promise.all(sugs.filter(s => isUnchecked(s.checks) && !checkBusy.has(s.id)).map(s => check(s.id)));
+
   async function recheck(id: string) {
     setSugs(prev => prev.map(s => s.id === id ? { ...s, checks: s.checks.map(c => ({ ...c, status: 'pending' as const })) } : s));
     try { await api.recheck(id); } catch (x) { fail(x); }
@@ -136,19 +149,21 @@ function Main({ onLogout }: { onLogout: () => void }) {
     const parents = sugs.filter(s => !s.isVariant || !s.parentId || !sugs.some(p => p.id === s.parentId));
     return parents.map(p => ({ parent: p, children: sugs.filter(c => c.isVariant && c.parentId === p.id) }));
   }, [sugs]);
-  const passes = (s: NameSuggestion) => showAll || bothFree(s.checks) || isPending(s.checks);
+  // Ungeprüfte Namen immer zeigen: der Nutzer entscheidet erst anhand der Namen, was geprüft wird.
+  const passes = (s: NameSuggestion) => showAll || isUnchecked(s.checks) || bothFree(s.checks) || isPending(s.checks);
   const visible = groups.filter(g => passes(g.parent) || g.children.some(passes));
 
   const allChecks = sugs.flatMap(s => s.checks);
   const done = allChecks.filter(c => c.status !== 'pending').length;
   const freeCount = sugs.filter(s => bothFree(s.checks)).length;
   const running = done < allChecks.length;
+  const uncheckedCount = sugs.filter(s => isUnchecked(s.checks)).length;
 
   let idx = 0;
   const card = (s: NameSuggestion, canVariants: boolean) => (
     <SuggestionCard key={s.id} s={s} index={idx++} fav={favs.some(f => f.suggestionId === s.id)}
-      dim={!showAll && !bothFree(s.checks)} variantsBusy={variantBusy.has(s.id)}
-      onFav={() => toggleFav(s)} onRecheck={() => recheck(s.id)} onVariants={canVariants ? () => variants(s.id) : undefined} />
+      dim={!showAll && !isUnchecked(s.checks) && !bothFree(s.checks)} variantsBusy={variantBusy.has(s.id)}
+      checkBusy={checkBusy.has(s.id)} onFav={() => toggleFav(s)} onCheck={() => check(s.id)} onRecheck={() => recheck(s.id)} onVariants={canVariants ? () => variants(s.id) : undefined} />
   );
 
   return (
@@ -180,14 +195,15 @@ function Main({ onLogout }: { onLogout: () => void }) {
                 <div className="results-bar">
                   <div className="progress" role="status" aria-live="polite">
                     <div className="bar"><span style={{ width: `${allChecks.length ? (done / allChecks.length) * 100 : 0}%` }} /></div>
-                    <span>{done}/{allChecks.length} Domains geprüft{running ? '' : ' – fertig'}, {freeCount} mit .de und .com frei</span>
+                    <span>{done}/{allChecks.length} Domains geprüft{running || !allChecks.length ? '' : ' – fertig'}, {freeCount} mit .de und .com frei{uncheckedCount > 0 && `, ${uncheckedCount} Namen ungeprüft`}</span>
                   </div>
+                  {uncheckedCount > 0 && <button type="button" className="btn primary sm" onClick={checkAll}>Alle Domains prüfen</button>}
                   <div className="seg" role="group" aria-label="Filter">
                     <button type="button" className={'seg-btn' + (!showAll ? ' on' : '')} aria-pressed={!showAll} onClick={() => setShowAll(false)}>Beide frei</button>
                     <button type="button" className={'seg-btn' + (showAll ? ' on' : '')} aria-pressed={showAll} onClick={() => setShowAll(true)}>Alle</button>
                   </div>
                 </div>
-                {!visible.length && <p className="empty">Für keinen Namen sind .de und .com gleichzeitig frei. Zeige „Alle“ und suche freie Varianten, oder starte eine neue Suche.</p>}
+                {!visible.length && <p className="empty">Für keinen geprüften Namen sind .de und .com gleichzeitig frei. Zeige „Alle“ und suche freie Varianten, oder starte eine neue Suche.</p>}
                 <div className="cards">
                   {visible.map(g => (
                     <div className="group" key={g.parent.id}>
@@ -220,7 +236,7 @@ function Waiting({ label }: { label: string }) {
   return (
     <div className="waiting" role="status">
       <div className="ghosts" aria-hidden>{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ ['--i' as string]: i }} />)}</div>
-      <p>{label} erdenkt Namen – das dauert 10 bis 40 Sekunden. Danach werden die Domains live geprüft.</p>
+      <p>{label} erdenkt Namen – das dauert 10 bis 40 Sekunden. Danach kannst du die Domains live prüfen.</p>
     </div>
   );
 }

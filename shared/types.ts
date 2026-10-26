@@ -18,7 +18,7 @@ export interface NameSuggestion {
   rationale: string; // kurze Begründung auf Deutsch
   isVariant: boolean; // true = regelbasierte Variante
   parentId: string | null;
-  checks: DomainCheck[]; // primär ohne Bindestrich; Bindestrich-Fallback wird ergänzt
+  checks: DomainCheck[]; // leer = noch nicht geprüft; primär ohne Bindestrich; Bindestrich-Fallback wird ergänzt
 }
 
 export type Language = 'de' | 'en' | 'international';
@@ -78,11 +78,12 @@ export interface ApiError {
   POST   /api/logout           -> 204
   GET    /api/session          -> { authenticated: boolean }
   GET    /api/providers        -> ProviderInfo[] (nur Anbieter mit gesetztem API-Key)
-  POST   /api/generate         GenerateRequest -> Search   (Checks starten async, status 'pending'); 429 bei Limit
+  POST   /api/generate         GenerateRequest -> Search   (Namen ungeprüft, checks: []); 429 bei Limit
   GET    /api/searches         -> Search[] (neueste zuerst, max 50)
   GET    /api/searches/:id     -> Search
-  POST   /api/suggestions/:id/variants -> NameSuggestion[]  (neue Varianten, Checks async)
-  POST   /api/suggestions/:id/recheck  -> 204
+  POST   /api/suggestions/:id/variants -> NameSuggestion[]  (neue Varianten, ungeprüft)
+  POST   /api/suggestions/:id/check    -> DomainCheck[]  (startet Prüfung mit Cache; spätere Ergebnisse per SSE)
+  POST   /api/suggestions/:id/recheck  -> 204  (erzwingt neue Prüfung ohne Cache)
   GET    /api/favorites        -> Favorite[]
   POST   /api/favorites        { suggestionId } -> Favorite
   PATCH  /api/favorites/:id    { note?, rating? } -> Favorite

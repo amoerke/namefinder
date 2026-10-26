@@ -23,6 +23,8 @@ export function bothFree(checks: DomainCheck[]) {
 
 export const isPending = (checks: DomainCheck[]) => checks.some(c => c.status === 'pending');
 
+export const isUnchecked = (checks: DomainCheck[]) => checks.length === 0;
+
 export function mergeCheck(s: NameSuggestion, c: DomainCheck): NameSuggestion {
   const i = s.checks.findIndex(x => x.domain === c.domain);
   const checks = i === -1 ? [...s.checks, c] : s.checks.map((x, j) => (j === i ? c : x));

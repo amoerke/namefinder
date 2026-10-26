@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { DomainCheck, Favorite, GenerateRequest, Language, NameSuggestion, ProviderInfo, Search, Style } from '../../shared/types';
 import { api, HttpError } from './api';
-import { bothFree, fmtTime, groupChecks, isPending } from './domain';
+import { bothFree, fmtTime, groupChecks, isPending, isUnchecked } from './domain';
 
 const STATUS_TEXT: Record<DomainCheck['status'], string> = {
   free: 'frei', taken: 'vergeben', pending: 'prüfe…', unknown: 'unklar',
@@ -163,9 +163,9 @@ export function DomainBadges({ checks, showTime }: { checks: DomainCheck[]; show
 const latest = (cs: DomainCheck[]) => cs.map(c => c.checkedAt).filter(Boolean).sort().pop() ?? null;
 
 /* ---------- Karte ---------- */
-export function SuggestionCard({ s, fav, dim, onFav, onVariants, onRecheck, variantsBusy, index }: {
-  s: NameSuggestion; fav: boolean; dim: boolean; index: number; variantsBusy: boolean;
-  onFav: () => void; onVariants?: () => void; onRecheck: () => void;
+export function SuggestionCard({ s, fav, dim, onFav, onVariants, onCheck, onRecheck, variantsBusy, checkBusy, index }: {
+  s: NameSuggestion; fav: boolean; dim: boolean; index: number; variantsBusy: boolean; checkBusy: boolean;
+  onFav: () => void; onVariants?: () => void; onCheck: () => void; onRecheck: () => void;
 }) {
   const free = bothFree(s.checks);
   return (
@@ -179,11 +179,16 @@ export function SuggestionCard({ s, fav, dim, onFav, onVariants, onRecheck, vari
         </button>
       </div>
       {s.rationale && <p className="why">{s.rationale}</p>}
-      <DomainBadges checks={s.checks} />
+      {isUnchecked(s.checks) ? (
+        <div className="actions">
+          <button type="button" className="btn primary sm" onClick={onCheck} disabled={checkBusy}>
+            {checkBusy ? 'Starte Prüfung…' : 'Domains prüfen'}</button>
+        </div>
+      ) : <DomainBadges checks={s.checks} />}
       <div className="actions">
         {onVariants && <button type="button" className="btn ghost sm" onClick={onVariants} disabled={variantsBusy}>
           {variantsBusy ? 'Suche Varianten…' : 'Freie Varianten suchen'}</button>}
-        <button type="button" className="btn ghost sm" onClick={onRecheck} disabled={isPending(s.checks)}>Neu prüfen</button>
+        {!isUnchecked(s.checks) && <button type="button" className="btn ghost sm" onClick={onRecheck} disabled={isPending(s.checks)}>Neu prüfen</button>}
       </div>
     </article>
   );
@@ -235,12 +240,12 @@ function FavoriteItem({ f, onPatch, onDelete, onRecheck }: {
         <h3 className="name sm">{f.name}</h3>
         <Stars value={f.rating} name={f.name} onChange={r => onPatch({ rating: r })} />
       </div>
-      <DomainBadges checks={f.checks} showTime />
+      {isUnchecked(f.checks) ? <p className="hint">Noch nicht geprüft.</p> : <DomainBadges checks={f.checks} showTime />}
       <label className="sr" htmlFor={`note-${f.id}`}>Notiz zu {f.name}</label>
       <textarea id={`note-${f.id}`} className="note" rows={2} placeholder="Notiz hinzufügen…" value={note} onChange={e => setNote(e.target.value)} />
       <Links name={f.name} />
       <div className="actions">
-        <button type="button" className="btn ghost sm" onClick={onRecheck} disabled={isPending(f.checks)}>Neu prüfen</button>
+        <button type="button" className="btn ghost sm" onClick={onRecheck} disabled={isPending(f.checks)}>{isUnchecked(f.checks) ? 'Domains prüfen' : 'Neu prüfen'}</button>
         <button type="button" className="btn ghost sm danger" onClick={onDelete}>Entfernen</button>
       </div>
     </li>

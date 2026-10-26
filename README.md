@@ -73,7 +73,8 @@ Daten (SQLite) liegen im Volume `namefinder-data`.
 
 ## Hinweise
 
-- **Domain-Check:** Zuerst ein schneller DNS-Vorfilter (existiert ein Eintrag, ist die Domain belegt),
+- **Domain-Check:** Die Prüfung startet nicht automatisch, sondern manuell per Button – pro Name
+  („Domains prüfen“) oder für alle Namen einer Suche („Alle Domains prüfen“). Das spart RDAP-Abfragen. Zuerst ein schneller DNS-Vorfilter (existiert ein Eintrag, ist die Domain belegt),
   für verbleibende Kandidaten eine RDAP-Abfrage (DENIC für .de, Verisign für .com).
 - **Rate-Limits:** Pro Stunde und pro Tag begrenzte Generierungen sowie Login-Sperre nach Fehlversuchen.
 - **KI-Anbieter:** Mindestens einen der beiden API-Keys setzen. Sind beide gesetzt, erscheint im Formular eine Auswahl

@@ -143,7 +143,6 @@ export function createApp(deps: AppDeps): Hono<Env> {
       request: { ...parsed.data, provider: providerId },
       suggestions: names.map((n) => ({ id: randomUUID(), ...n, isVariant: false, parentId: null, checks: [] })),
     };
-    for (const s of search.suggestions) s.checks = checker.enqueue(s.id, s.name, s.parts);
     db.insertSearch(search);
     return c.json(search);
   });
@@ -176,13 +175,22 @@ export function createApp(deps: AppDeps): Hono<Env> {
         checks: [],
       });
     }
-    // Erst speichern, dann prüfen, damit onUpdate-Ergebnisse den Vorschlag in der DB finden.
+    // Varianten bleiben ungeprüft (checks: []); die Prüfung startet manuell über /check.
     db.insertSuggestions(found.searchId, variants);
-    for (const v of variants) {
-      v.checks = checker.enqueue(v.id, v.name, v.parts);
-      for (const ch of v.checks) db.applyCheck(v.id, ch);
-    }
     return c.json(variants);
+  });
+
+  // Manueller Start: ohne force, damit der Domain-Cache genutzt wird; Antwort = sofortiger Stand.
+  app.post('/api/suggestions/:id/check', (c) => {
+    const found = db.getSuggestion(c.req.param('id'));
+    if (!found) return c.json({ error: 'Vorschlag nicht gefunden.' }, 404);
+    const s = found.suggestion;
+    const checks = checker.enqueue(s.id, s.name, s.parts);
+    for (const ch of checks) {
+      db.applyCheck(s.id, ch);
+      hub.broadcast({ suggestionId: s.id, check: ch });
+    }
+    return c.json(checks);
   });
 
   app.post('/api/suggestions/:id/recheck', (c) => {

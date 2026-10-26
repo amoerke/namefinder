@@ -1,5 +1,5 @@
 import type {
-  ApiError, Favorite, GenerateRequest, NameSuggestion, ProviderInfo, Search,
+  ApiError, DomainCheck, Favorite, GenerateRequest, NameSuggestion, ProviderInfo, Search,
 } from '../../shared/types';
 
 export class HttpError extends Error {
@@ -45,6 +45,7 @@ export const api = {
   searches: () => req<Search[]>('GET', '/api/searches'),
   search: (id: string) => req<Search>('GET', `/api/searches/${encodeURIComponent(id)}`),
   variants: (id: string) => req<NameSuggestion[]>('POST', `/api/suggestions/${encodeURIComponent(id)}/variants`),
+  check: (id: string) => req<DomainCheck[]>('POST', `/api/suggestions/${encodeURIComponent(id)}/check`),
   recheck: (id: string) => req<void>('POST', `/api/suggestions/${encodeURIComponent(id)}/recheck`),
   favorites: () => req<Favorite[]>('GET', '/api/favorites'),
   addFavorite: (suggestionId: string) => req<Favorite>('POST', '/api/favorites', { suggestionId }),
