@@ -1,0 +1,12 @@
+{
+  "name": "namefinder",
+  "private": true,
+  "type": "module",
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "dev": "npm run dev -w server & npm run dev -w web",
+    "build": "npm run build -w web && npm run build -w server",
+    "test": "npm test -w server",
+    "start": "npm start -w server"
+  }
+}

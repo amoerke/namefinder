@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      PORT: "8787"
+    volumes:
+      - namefinder-data:/data
+    # Nur lokal gebunden – der vorhandene Reverse-Proxy auf dem VPS leitet darauf weiter.
+    ports:
+      - "127.0.0.1:${HOST_PORT:-8787}:8787"
+    restart: unless-stopped
+
+volumes:
+  namefinder-data:
