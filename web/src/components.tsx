@@ -66,7 +66,7 @@ function TagInput({ id, value, onChange }: { id: string; value: string[]; onChan
 /* ---------- Formular ---------- */
 const STYLES: [Style, string][] = [['kunstwort', 'Kunstwort'], ['beschreibend', 'Beschreibend'], ['kombination', 'Kombination'], ['metapher', 'Metapher']];
 const LANGS: [Language, string][] = [['de', 'Deutsch'], ['en', 'Englisch'], ['international', 'International']];
-export const EMPTY_REQ: GenerateRequest = { description: '', tags: [], language: 'de', styles: ['kombination'], maxLength: 12, count: 20, mustInclude: '', exclude: '' };
+export const EMPTY_REQ: GenerateRequest = { description: '', tags: [], language: 'de', styles: ['kunstwort', 'kombination', 'metapher'], maxLength: 12, count: 20, mustInclude: '', exclude: '' };
 
 export function SearchForm({ value, onChange, onSubmit, busy, providers }: {
   value: GenerateRequest; onChange: (r: GenerateRequest) => void; onSubmit: () => void; busy: boolean; providers: ProviderInfo[];

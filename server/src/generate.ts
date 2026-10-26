@@ -52,8 +52,8 @@ export const SYSTEM_PROMPT = `Du bist eine erfahrene Namensagentur und entwickel
 
 Regeln für jeden Namen (strikt einhalten):
 - Nur Buchstaben A–Z/a–z und Ziffern. KEINE Umlaute (ä, ö, ü, ß – stattdessen ae/oe/ue/ss oder ein anderes Wort), KEINE Bindestriche, KEINE Leerzeichen, KEINE Sonderzeichen.
-- Schreibweise in CamelCase: jede Wortgrenze beginnt mit einem Großbuchstaben (z. B. "SonnenPlan").
-- "parts" enthält die Wortbestandteile in genau dieser Schreibweise; zusammengesetzt ergeben sie exakt "name" (z. B. ["Sonnen", "Plan"]). Ein Kunstwort ohne Wortgrenze hat genau einen Teil.
+- Schreibweise in CamelCase: jede Wortgrenze beginnt mit einem Großbuchstaben (z. B. "SonnenPlan"). Einzelwörter ohne Wortgrenze sind genauso willkommen (z. B. "Lumora", "Leuchtturm").
+- "parts" enthält die Wortbestandteile in genau dieser Schreibweise; zusammengesetzt ergeben sie exakt "name" (z. B. ["Sonnen", "Plan"]). Ein Einzelwort oder Kunstwort ohne Wortgrenze hat genau einen Teil (z. B. ["Lumora"]).
 - Die maximale Länge des Namens (Zeichenanzahl) wird nie überschritten.
 - Keine bekannten Marken, Firmennamen oder geschützten Produktnamen und nichts, was ihnen zum Verwechseln ähnlich ist.
 - Namen müssen sich deutlich voneinander unterscheiden; keine Dubletten.
@@ -68,6 +68,10 @@ export function buildUserPrompt(req: GenerateRequest): string {
     req.tags.length ? `Stichworte: ${req.tags.join(', ')}` : null,
     `Sprache/Klang: ${LANG_TEXT[req.language]}`,
     `Stile (gemischt): ${req.styles.map((s) => STYLE_TEXT[s]).join('; ')}`,
+    // Ohne diesen Hinweis liefern die Modelle fast nur zusammengesetzte Namen.
+    req.styles.some((s) => s !== 'kombination')
+      ? 'Mischung: Mindestens ein Drittel der Namen sind Einzelwörter (genau ein Teil), z. B. Kunstwörter oder Metaphern.'
+      : null,
     `Maximale Länge: ${req.maxLength} Zeichen`,
     req.mustInclude ? `Musswörter: ${req.mustInclude}` : null,
     req.exclude ? `Ausschlusswörter: ${req.exclude}` : null,
