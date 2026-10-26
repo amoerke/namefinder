@@ -188,7 +188,7 @@ function Main({ onLogout }: { onLogout: () => void }) {
         {tab === 'ergebnisse' && (
           <section id="panel-ergebnisse" role="tabpanel" aria-labelledby="tab-ergebnisse">
             {busy && !sugs.length && <Waiting label={providers.find(p => p.id === req.provider)?.label ?? 'Die KI'} />}
-            {busy && sugs.length > 0 && <p className="status-line" role="status">Neue Namen werden erdacht – das dauert 10 bis 40 Sekunden.</p>}
+            {busy && sugs.length > 0 && <p className="status-line" role="status">Neue Namen werden erdacht – das dauert 20 bis 80 Sekunden.</p>}
             {!busy && !search && <p className="empty big">Beschreibe links, was deine Firma macht. Hier erscheinen dann Namen, deren .de- und .com-Domain du live prüfen kannst.</p>}
             {search && (
               <>
@@ -236,7 +236,7 @@ function Waiting({ label }: { label: string }) {
   return (
     <div className="waiting" role="status">
       <div className="ghosts" aria-hidden>{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ ['--i' as string]: i }} />)}</div>
-      <p>{label} erdenkt Namen – das dauert 10 bis 40 Sekunden. Danach kannst du die Domains live prüfen.</p>
+      <p>{label} erdenkt Namen – das dauert 20 bis 80 Sekunden. Danach kannst du die Domains live prüfen.</p>
     </div>
   );
 }

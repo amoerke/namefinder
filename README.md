@@ -79,6 +79,6 @@ Daten (SQLite) liegen im Volume `namefinder-data`.
 - **Rate-Limits:** Pro Stunde und pro Tag begrenzte Generierungen sowie Login-Sperre nach Fehlversuchen.
 - **KI-Anbieter:** Mindestens einen der beiden API-Keys setzen. Sind beide gesetzt, erscheint im Formular eine Auswahl
   (Claude ist voreingestellt); im Verlauf steht, welcher Anbieter die Namen geliefert hat. Die Limits gelten für beide zusammen.
-- **Kosten:** Mit Sonnet 5.5 ca. 1–3 Cent pro Generierung; `MAX_GENERATIONS_PER_DAY` begrenzt die Tageskosten.
+- **Kosten:** Mit Sonnet 5.5 ca. 2–6 Cent pro Generierung (zwei Durchgänge: Ideensammlung, dann Auswahl); `MAX_GENERATIONS_PER_DAY` begrenzt die Tageskosten.
 - **Markenrecht:** Eine freie Domain ist keine freie Marke. Vor Verwendung eines Namens
   Marken-Register (DPMA, EUIPO, WIPO) prüfen; die App ersetzt keine Rechtsberatung.

@@ -74,6 +74,40 @@ describe('createOpenAIGenerator', () => {
     expect(out[0]!.parts).toEqual(['Sonnen', 'Plan']);
   });
 
+  const textResponse = (body: unknown) => ({
+    id: 'resp_x', object: 'response', created_at: 0, status: 'completed', model: 'gpt-5.5', incomplete_details: null,
+    output: [{ type: 'message', id: 'msg_x', role: 'assistant', status: 'completed',
+      content: [{ type: 'output_text', text: JSON.stringify(body), annotations: [] }] }],
+  });
+  const ideas = { names: Array.from({ length: 15 }, (_, i) => n(`Idee${String.fromCharCode(97 + i)}`)) };
+
+  it('wählt im zweiten Durchgang aus der Ideensammlung aus und füllt auf', async () => {
+    const bodies: string[] = [];
+    const replies = [textResponse(ideas), textResponse({ names: [n('Ideeo'), n('Erfunden'), n('Ideec')] })];
+    const fetchMock = (async (_url: unknown, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+      return new Response(JSON.stringify(replies.shift()), { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch;
+    const out = await createOpenAIGenerator({ apiKey: 'test', model: 'gpt-5.5', fetch: fetchMock })(req);
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toContain('Ideea');
+    // Ausgewählte zuerst, erfundene verworfen, Rest aus der Ideensammlung.
+    expect(out.map((x) => x.name)).toEqual(['Ideeo', 'Ideec', 'Ideea', 'Ideeb', 'Ideed', 'Ideee', 'Ideef', 'Ideeg', 'Ideeh', 'Ideei']);
+  });
+
+  it('nutzt die Ideensammlung, wenn die Auswahl fehlschlägt', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const replies = [
+      new Response(JSON.stringify(textResponse(ideas)), { status: 200, headers: { 'content-type': 'application/json' } }),
+      new Response(JSON.stringify({ error: { message: 'boom', type: 'server_error' } }), { status: 500, headers: { 'content-type': 'application/json' } }),
+    ];
+    const fetchMock = (async () => replies.shift()!) as unknown as typeof fetch;
+    const out = await createOpenAIGenerator({ apiKey: 'test', model: 'gpt-5.5', fetch: fetchMock })(req);
+    expect(out).toHaveLength(10);
+    expect(out[0]!.name).toBe('Ideea');
+    log.mockRestore();
+  });
+
   it('meldet aufgebrauchtes OpenAI-Guthaben verständlich', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const generate = createOpenAIGenerator({
