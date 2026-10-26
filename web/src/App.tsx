@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CheckUpdateEvent, Favorite, GenerateRequest, NameSuggestion, ProviderInfo, Search } from '../../shared/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CheckUpdateEvent, DomainCheck, Favorite, GenerateRequest, NameSuggestion, ProviderInfo, Search } from '../../shared/types';
 import { api, HttpError, setUnauthorizedHandler } from './api';
 import { bothFree, isPending, isUnchecked, mergeCheck } from './domain';
 import { EMPTY_REQ, Favorites, History, Login, SearchForm, SuggestionCard } from './components';
@@ -32,6 +32,7 @@ function Main({ onLogout }: { onLogout: () => void }) {
   const [variantBusy, setVariantBusy] = useState<Set<string>>(new Set());
   const [checkBusy, setCheckBusy] = useState<Set<string>>(new Set());
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const searchId = useRef<string | null>(null);
 
   const fail = useCallback((x: unknown) => {
     if (x instanceof HttpError && x.status === 401) return;
@@ -51,6 +52,15 @@ function Main({ onLogout }: { onLogout: () => void }) {
   // Live-Updates
   useEffect(() => {
     const es = new EventSource('/api/events');
+    // Nach einem Verbindungsabbruch gehen Events verloren – beim Wiederverbinden den Stand neu laden.
+    let reconnect = false;
+    es.addEventListener('open', () => {
+      if (reconnect) {
+        if (searchId.current) api.search(searchId.current).then(s => setSugs(s.suggestions)).catch(() => {});
+        api.favorites().then(setFavs).catch(() => {});
+      }
+      reconnect = true;
+    });
     es.addEventListener('check', (ev) => {
       let d: CheckUpdateEvent;
       try { d = JSON.parse((ev as MessageEvent).data); } catch { return; }
@@ -71,7 +81,7 @@ function Main({ onLogout }: { onLogout: () => void }) {
   }, [notice]);
 
   const load = (s: Search) => {
-    setSearch(s); setSugs(s.suggestions); setTab('ergebnisse');
+    setSearch(s); setSugs(s.suggestions); setTab('ergebnisse'); searchId.current = s.id;
     // Alte Suchen haben keinen Anbieter, und ein Anbieter kann inzwischen fehlen – dann die aktuelle Wahl behalten.
     setReq(r => ({ ...s.request, provider: providers.some(p => p.id === s.request.provider) ? s.request.provider : r.provider }));
   };
@@ -108,7 +118,10 @@ function Main({ onLogout }: { onLogout: () => void }) {
     setCheckBusy(s => new Set(s).add(id));
     try {
       const checks = await api.check(id);
-      setSugs(prev => prev.map(s => s.id === id ? checks.reduce(mergeCheck, s) : s));
+      // Das SSE-Ergebnis kann vor dieser Antwort eintreffen; ein fertiges Ergebnis nicht wieder auf 'pending' setzen.
+      const keepFinal = (s: NameSuggestion, c: DomainCheck) =>
+        c.status === 'pending' && s.checks.some(x => x.domain === c.domain && x.status !== 'pending') ? s : mergeCheck(s, c);
+      setSugs(prev => prev.map(s => s.id === id ? checks.reduce(keepFinal, s) : s));
     } catch (x) { fail(x); }
     finally { setCheckBusy(s => { const n = new Set(s); n.delete(id); return n; }); }
   }
